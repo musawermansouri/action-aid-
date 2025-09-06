@@ -1,0 +1,395 @@
+<!--
+ActionAid Jobs Portal — Single-file HTML
+Features:
+- Modern, responsive, polished UI (no external frameworks)
+- Search, province filter, job type filter, sort, and keyword highlighting
+- Job cards grid + job detail modal with Apply flow (mock) saved to localStorage
+- Sample real-looking job data for Afghanistan provinces (Kabul, Herat, Bamyan, Ghor, Paktika, Paktia...)
+- Accessible markup, keyboard-friendly modals, smooth animations
+
+How to use:
+1) Save this file as actionaid-jobs.html
+2) Open locally in a browser or upload to any static host (Netlify / GitHub Pages)
+3) To connect to a real backend: replace SAMPLE_JOBS with API fetch and handle apply submissions server-side.
+
+Note: This is a front-end prototype. For production add server-side validation and security.
+-->
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>ActionAid — Jobs in Afghanistan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --muted:#9aa4b2; --accent:#06b6d4; --glass:rgba(255,255,255,0.04);
+    --white: #e6eef6; --glass-2: rgba(255,255,255,0.03);
+    --success: #10b981; --danger:#ff6b6b;
+  }
+  *{box-sizing:border-box}
+  body{font-family:Inter,system-ui,Segoe UI,Roboto,-apple-system,'Helvetica Neue',Arial; margin:0; background:linear-gradient(180deg,#071021 0%, #081427 60%); color:var(--white); -webkit-font-smoothing:antialiased}
+  .container{max-width:1180px;margin:28px auto;padding:0 20px}
+  header{display:flex;align-items:center;gap:18px}
+  .logo{display:flex;align-items:center;gap:12px}
+  .logo .mark{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#0ea5a4);display:flex;align-items:center;justify-content:center;font-weight:800;color:#012;box-shadow:0 8px 30px rgba(6,182,212,0.12)}
+  h1{font-size:20px;margin:0}
+  p.lead{margin:6px 0 0;color:var(--muted);font-size:13px}
+
+  .panel{background:linear-gradient(180deg,var(--card), #071022);border-radius:12px;padding:18px;box-shadow:0 10px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.03)}
+
+  .search-row{display:flex;gap:12px;align-items:center;margin-top:18px}
+  .search{flex:1;display:flex;gap:8px;align-items:center}
+  .search input{flex:1;padding:12px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:var(--glass);color:var(--white);outline:none}
+  .filter-group{display:flex;gap:8px;flex-wrap:wrap}
+  select, .chip{padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.03);background:var(--glass);color:var(--white)}
+  .chip{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+  .chip input{appearance:none;margin:0}
+  .controls{display:flex;gap:8px;align-items:center}
+  .btn{background:linear-gradient(180deg,var(--accent),#06b6d4);color:#02121a;border:none;padding:10px 14px;border-radius:10px;cursor:pointer;font-weight:600}
+  .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--white)}
+
+  .main-grid{display:grid;grid-template-columns:1fr 360px;gap:18px;margin-top:18px}
+  .jobs-list{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+  .job-card{background:linear-gradient(180deg,rgba(255,255,255,0.02),transparent);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);transition:transform .18s ease,box-shadow .18s;display:flex;flex-direction:column;gap:8px}
+  .job-card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(2,6,23,0.6)}
+  .job-head{display:flex;gap:12px;align-items:center}
+  .org-mark{width:54px;height:54px;border-radius:8px;background:linear-gradient(135deg,#0ea5a4,#06b6d4);display:flex;align-items:center;justify-content:center;font-weight:800;color:#012}
+  .job-title{font-weight:700;font-size:15px}
+  .meta{font-size:13px;color:var(--muted)}
+  .tags{display:flex;gap:8px;flex-wrap:wrap}
+  .tag{background:rgba(255,255,255,0.03);padding:6px 10px;border-radius:8px;font-size:12px}
+  .excerpt{color:var(--muted);font-size:13px}
+
+  .right-panel .card{margin-bottom:14px}
+
+  .job-controls{display:flex;gap:8px;margin-top:auto}
+  .small{font-size:13px;color:var(--muted)}
+
+  /* modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.6);display:flex;align-items:center;justify-content:center;padding:20px;z-index:60}
+  .modal{width:840px;max-width:100%;background:linear-gradient(180deg,#071827,#06121b);border-radius:12px;padding:18px;border:1px solid rgba(255,255,255,0.04);box-shadow:0 24px 80px rgba(2,6,23,0.9)}
+  .modal .modal-body{display:flex;gap:16px}
+  .modal .left{flex:1}
+  .modal .right{width:300px}
+  .apply-form input, .apply-form textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--white)}
+
+  footer{text-align:center;color:var(--muted);margin-top:26px}
+
+  /* responsive */
+  @media (max-width:980px){
+    .main-grid{grid-template-columns:1fr}
+    .jobs-list{grid-template-columns:1fr}
+    .right-panel{order:2}
+  }
+
+  /* subtle highlights for search match */
+  mark{background:rgba(255,215,0,0.12);padding:2px 4px;border-radius:4px;color:inherit}
+
+  /* empty state */
+  .empty{padding:40px;border-radius:12px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">
+        <div class="mark" aria-hidden="true">AA</div>
+        <div>
+          <h1>ActionAid — Afghanistan Jobs</h1>
+          <p class="lead">Find field and remote roles across provinces — Kabul, Herat, Bamyan, Ghor, Paktika and more.</p>
+        </div>
+      </div>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button class="btn" id="postJobBtn">Post a Job</button>
+        <button class="btn ghost" id="savedBtn">Saved (<span id="savedCount">0</span>)</button>
+      </div>
+    </header>
+
+    <div class="panel">
+      <div class="search-row">
+        <div class="search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden><path d="M21 21l-4.35-4.35" stroke="rgba(255,255,255,0.6)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <input type="search" id="q" placeholder="Search jobs, locations, skills... e.g. MEAL, WASH, Kabul" aria-label="Search jobs">
+        </div>
+
+        <div class="filter-group">
+          <select id="province">
+            <option value="">All Provinces</option>
+          </select>
+          <select id="type">
+            <option value="">All Types</option>
+            <option>Full-time</option>
+            <option>Part-time</option>
+            <option>Consultant</option>
+            <option>Fixed Term</option>
+          </select>
+          <select id="sort">
+            <option value="newest">Newest</option>
+            <option value="deadline">Closest deadline</option>
+            <option value="oldest">Oldest</option>
+          </select>
+        </div>
+
+        <div class="controls" style="margin-left:auto">
+          <button class="btn ghost" id="clearFilters">Clear</button>
+          <button class="btn" id="refresh">Refresh</button>
+        </div>
+      </div>
+
+      <div class="main-grid">
+        <div>
+          <div class="panel" style="margin-bottom:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div>
+                <strong id="countText">0</strong> jobs available
+                <div class="small">Showing latest opportunities in Afghanistan</div>
+              </div>
+              <div class="small">Updated: <span id="updatedAt"></span></div>
+            </div>
+          </div>
+
+          <div id="jobsArea" class="jobs-list"></div>
+          <div style="text-align:center;margin-top:12px"><button class="btn ghost" id="loadMore">Load more</button></div>
+        </div>
+
+        <aside class="right-panel">
+          <div class="panel card">
+            <h3 style="margin:0 0 8px 0">Filter by quick tags</h3>
+            <div class="tags" id="quickTags"></div>
+          </div>
+
+          <div class="panel card">
+            <h4 style="margin:0 0 8px 0">Saved / Applied</h4>
+            <div class="small">You can save jobs to apply later. Applies are mock-saved locally in this demo.</div>
+            <div style="margin-top:12px">
+              <button class="btn" id="viewSaved">View Saved</button>
+            </div>
+          </div>
+
+          <div class="panel card">
+            <h4 style="margin:0 0 8px 0">About</h4>
+            <div class="small">This portal shows sample ActionAid job listings for demonstration. For real vacancies, integrate with your HR API or connect to Firestore/REST endpoints.</div>
+          </div>
+        </aside>
+      </div>
+
+    </div>
+
+    <footer>Prototype — ActionAid design sample • Demo only</footer>
+  </div>
+
+  <!-- Modal area -->
+  <div id="modalRoot" class="hidden"></div>
+
+<script>
+// ---------- SAMPLE JOBS (replace with real API) ----------
+const SAMPLE_JOBS = [
+  {id:'J-001', title:'MEAL Officer', org:'ActionAid Afghanistan', province:'Kabul', district:'Deh Sabz', type:'Full-time', posted:'2025-08-01', deadline:'2025-09-15', salary:'Competitive', summary:'Lead monitoring, evaluation, accountability and learning for MPCA projects. Coordinate with field teams and donors. Manage M&E tools and reporting.', skills:['MEAL','Monitoring','Data Analysis'], remote:false},
+  {id:'J-002', title:'WASH Field Coordinator', org:'ActionAid', province:'Ghor', district:'Chaghcharan', type:'Full-time', posted:'2025-08-20', deadline:'2025-10-05', salary:'Competitive', summary:'Coordinate WASH activities across target communities, supervise field teams, and liaise with local partners.', skills:['WASH','Coordination','Field Management'], remote:false},
+  {id:'J-003', title:'Home Gardening Project Officer', org:'ActionAid', province:'Paktika', district:'Urgon', type:'Fixed Term', posted:'2025-07-10', deadline:'2025-09-01', salary:'Local Salary', summary:'Implement home gardening activities, provide trainings to beneficiaries, and monitor sapling distribution.', skills:['Agriculture','Training'], remote:false},
+  {id:'J-004', title:'Protection & GBV Advisor (Consultant)', org:'ActionAid', province:'Herat', district:'Guzara', type:'Consultant', posted:'2025-06-15', deadline:'2025-08-30', salary:'Daily Rate', summary:'Provide technical support on protection mainstreaming and GBV response mechanisms across programs.', skills:['Protection','GBV','Advisory'], remote:true},
+  {id:'J-005', title:'Finance Assistant', org:'ActionAid', province:'Kabul', district:'Bagrami', type:'Part-time', posted:'2025-07-25', deadline:'2025-09-10', salary:'Local Salary', summary:'Support finance team with payments, filing, and report preparation. Ensure compliance with finance procedures.', skills:['Accounting','Excel'], remote:false},
+  {id:'J-006', title:'DRR Officer', org:'ActionAid', province:'Bamyan', district:'Bamyan City', type:'Full-time', posted:'2025-07-01', deadline:'2025-09-05', salary:'Competitive', summary:'Lead community-based DRR activities, hazard mapping, and early warning planning.', skills:['DRR','Community Mobilization'], remote:false},
+  {id:'J-007', title:'Field Enumerator', org:'ActionAid', province:'Jawzjan', district:'Shibirghan', type:'Fixed Term', posted:'2025-08-05', deadline:'2025-08-30', salary:'Daily Rate', summary:'Conduct household surveys, FGDs, and KIIs for need assessments.', skills:['Survey','KII','FGD'], remote:false},
+];
+
+// ---------- App state ----------
+let jobs = SAMPLE_JOBS.slice();
+let page = 1; const PAGE_SIZE = 6;
+const provinces = Array.from(new Set(jobs.map(j=>j.province))).sort();
+const savedKey = 'aa_saved_jobs_v1';
+let saved = JSON.parse(localStorage.getItem(savedKey) || '[]');
+
+// ---------- DOM refs ----------
+const qEl = document.getElementById('q');
+const provinceEl = document.getElementById('province');
+const typeEl = document.getElementById('type');
+const sortEl = document.getElementById('sort');
+const jobsArea = document.getElementById('jobsArea');
+const countText = document.getElementById('countText');
+const updatedAt = document.getElementById('updatedAt');
+const savedCount = document.getElementById('savedCount');
+const quickTags = document.getElementById('quickTags');
+const modalRoot = document.getElementById('modalRoot');
+
+// ---------- Init ----------
+function init(){
+  // populate provinces
+  provinces.forEach(p=>{const opt=document.createElement('option');opt.value=p;opt.textContent=p;provinceEl.appendChild(opt)});
+  renderQuickTags();
+  attachEvents();
+  renderJobs();
+  updateMeta();
+  savedCount.textContent = saved.length;
+}
+
+function updateMeta(){ updatedAt.textContent = new Date().toLocaleString(); }
+
+function renderQuickTags(){
+  const tags = ['MEAL','WASH','Protection','Finance','DRR','Home Gardening','Field'];
+  quickTags.innerHTML='';
+  tags.forEach(t=>{
+    const el = document.createElement('div'); el.className='tag'; el.tabIndex=0; el.textContent=t; el.onclick=()=>{ qEl.value=t; filterAndRender(true); }
+    quickTags.appendChild(el);
+  });
+}
+
+// ---------- Events ----------
+function attachEvents(){
+  qEl.addEventListener('input', ()=>filterAndRender(true));
+  provinceEl.addEventListener('change', ()=>filterAndRender(true));
+  typeEl.addEventListener('change', ()=>filterAndRender(true));
+  sortEl.addEventListener('change', ()=>filterAndRender(true));
+  document.getElementById('clearFilters').addEventListener('click', clearFilters);
+  document.getElementById('refresh').addEventListener('click', ()=>{ jobs = SAMPLE_JOBS.slice(); filterAndRender(true); updateMeta(); });
+  document.getElementById('loadMore').addEventListener('click', ()=>{ page++; renderJobs(); });
+  document.getElementById('viewSaved').addEventListener('click', viewSaved);
+  document.getElementById('postJobBtn').addEventListener('click', ()=>alert('To post a job integrate with HR backend. This is a demo.'));
+  document.getElementById('savedBtn').addEventListener('click', viewSaved);
+}
+
+function clearFilters(){ qEl.value=''; provinceEl.value=''; typeEl.value=''; sortEl.value='newest'; filterAndRender(true); }
+
+// ---------- Filter & Render ----------
+function filterAndRender(resetPage){ if(resetPage) page=1; renderJobs(); }
+
+function getFiltered(){
+  const q = qEl.value.trim().toLowerCase();
+  const prov = provinceEl.value; const typ = typeEl.value; const sort = sortEl.value;
+  let out = jobs.slice();
+  if(q){ out = out.filter(j=> (j.title||'').toLowerCase().includes(q) || (j.summary||'').toLowerCase().includes(q) || (j.skills||[]).join(' ').toLowerCase().includes(q) || (j.province||'').toLowerCase().includes(q) || (j.district||'').toLowerCase().includes(q)); }
+  if(prov) out = out.filter(j=>j.province===prov);
+  if(typ) out = out.filter(j=>j.type===typ);
+  if(sort==='newest') out.sort((a,b)=> new Date(b.posted) - new Date(a.posted));
+  if(sort==='oldest') out.sort((a,b)=> new Date(a.posted) - new Date(b.posted));
+  if(sort==='deadline') out.sort((a,b)=> new Date(a.deadline) - new Date(b.deadline));
+  return out;
+}
+
+function renderJobs(){
+  const filtered = getFiltered();
+  const offset = (page-1)*PAGE_SIZE; const chunk = filtered.slice(0, offset + PAGE_SIZE);
+  jobsArea.innerHTML='';
+  if(chunk.length===0){ jobsArea.innerHTML = '<div class="empty panel">No jobs found matching filters.</div>'; countText.textContent = 0; return; }
+
+  chunk.forEach(job=>{ const node = jobCard(job); jobsArea.appendChild(node); });
+  countText.textContent = filtered.length;
+}
+
+function jobCard(job){
+  const card = document.createElement('article'); card.className='job-card';
+  const head = document.createElement('div'); head.className='job-head';
+  const mark = document.createElement('div'); mark.className='org-mark'; mark.textContent = job.org.split(' ').map(s=>s[0]).slice(0,2).join('');
+  const info = document.createElement('div'); info.style.flex='1';
+  const title = document.createElement('div'); title.className='job-title'; title.innerHTML = highlight(job.title);
+  const meta = document.createElement('div'); meta.className='meta'; meta.textContent = `${job.province} • ${job.district} • ${job.type} • Deadline: ${job.deadline}`;
+  info.appendChild(title); info.appendChild(meta);
+  head.appendChild(mark); head.appendChild(info);
+  const tags = document.createElement('div'); tags.className='tags'; (job.skills||[]).slice(0,3).forEach(s=>{ const t=document.createElement('div'); t.className='tag'; t.textContent=s; tags.appendChild(t); });
+  const excerpt = document.createElement('div'); excerpt.className='excerpt'; excerpt.innerHTML = truncate(highlight(job.summary), 160);
+  const controls = document.createElement('div'); controls.className='job-controls';
+  const btnView = document.createElement('button'); btnView.className='btn ghost'; btnView.textContent='View'; btnView.onclick = ()=>openJob(job.id);
+  const btnSave = document.createElement('button'); btnSave.className='btn'; btnSave.textContent = saved.includes(job.id) ? 'Saved' : 'Save'; btnSave.onclick = (e)=>{ e.stopPropagation(); toggleSave(job.id); btnSave.textContent = saved.includes(job.id) ? 'Saved' : 'Save'; }
+  controls.appendChild(btnView); controls.appendChild(btnSave);
+  card.appendChild(head); card.appendChild(tags); card.appendChild(excerpt); card.appendChild(controls);
+  card.addEventListener('click', ()=>openJob(job.id));
+  return card;
+}
+
+function truncate(str, n){ if(!str) return ''; return str.length>n? str.slice(0,n-1)+'…':str; }
+
+function highlight(text){ const q = qEl.value.trim(); if(!q) return escapeHtml(text); try{ const re = new RegExp('('+escapeReg(q)+')','ig'); return escapeHtml(text).replace(re, '<mark>$1</mark>'); }catch(e){ return escapeHtml(text); } }
+
+function escapeReg(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+function escapeHtml(s){ if(!s) return ''; return String(s).replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+// ---------- Modal / Detail ----------
+function openJob(id){ const job = jobs.find(j=>j.id===id); if(!job) return; showModal(job); }
+
+function showModal(job){
+  modalRoot.innerHTML = `
+    <div class="modal-backdrop" role="dialog" aria-modal="true">
+      <div class="modal" id="jobModal">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div>
+            <div style="display:flex;gap:12px;align-items:center"><div class="org-mark">${job.org.split(' ').map(s=>s[0]).slice(0,2).join('')}</div><div><div style="font-weight:800;font-size:16px">${escapeHtml(job.title)}</div><div class="small">${job.org} • ${job.province} • ${job.district}</div></div></div>
+          </div>
+          <div><button class="btn ghost" id="closeModal">Close</button></div>
+        </div>
+        <div class="modal-body">
+          <div class="left">
+            <div class="small">Posted: ${job.posted} • Deadline: ${job.deadline}</div>
+            <h3 style="margin-top:12px">Job summary</h3>
+            <p class="small">${escapeHtml(job.summary)}</p>
+            <h4>Skills & Requirements</h4>
+            <ul class="small">${(job.skills||[]).map(s=>'<li>'+escapeHtml(s)+'</li>').join('')}</ul>
+            <h4>Details</h4>
+            <table class="small" style="width:100%;border-collapse:collapse">
+              <tr><td style="padding:6px 8px;border-top:1px solid rgba(255,255,255,0.02)">Type</td><td style="padding:6px 8px;border-top:1px solid rgba(255,255,255,0.02)">${job.type}</td></tr>
+              <tr><td style="padding:6px 8px">Salary</td><td style="padding:6px 8px">${job.salary||'TBD'}</td></tr>
+              <tr><td style="padding:6px 8px">Location</td><td style="padding:6px 8px">${job.province} — ${job.district}</td></tr>
+            </table>
+          </div>
+          <div class="right">
+            <div class="panel" style="padding:12px;margin-bottom:12px">
+              <div style="display:flex;justify-content:space-between;align-items:center"><div class="small">Apply now</div><div class="small">Deadline: ${job.deadline}</div></div>
+              <div style="margin-top:8px" id="applyArea">
+                <form class="apply-form" id="applyForm">
+                  <label class="small">Full name</label><input name="name" required>
+                  <label class="small">Email</label><input name="email" type="email" required>
+                  <label class="small">Cover note</label><textarea name="note" rows="4" placeholder="Write a short note why you're right for this role"></textarea>
+                  <div style="margin-top:8px;display:flex;gap:8px"><button class="btn" type="submit">Submit application</button><button class="btn ghost" id="saveJobBtn" type="button">${ saved.includes(job.id)? 'Saved' : 'Save' }</button></div>
+                </form>
+              </div>
+            </div>
+            <div class="panel small">
+              <div style="font-weight:700;margin-bottom:6px">Recruiter notes</div>
+              <div>For more information, contact hr@actionaid.af (demo). This portal is a visual prototype.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  modalRoot.classList.remove('hidden');
+  document.getElementById('closeModal').addEventListener('click', closeModal);
+  document.getElementById('jobModal').addEventListener('click', (e)=>e.stopPropagation());
+  modalRoot.querySelector('.modal-backdrop').addEventListener('click', closeModal);
+  // apply submit
+  const applyForm = document.getElementById('applyForm');
+  applyForm.addEventListener('submit', (ev)=>{
+    ev.preventDefault(); const f = new FormData(applyForm);
+    const data = {jobId:job.id, name:f.get('name'), email:f.get('email'), note:f.get('note'), appliedAt:new Date().toISOString()};
+    // In real app: send to server
+    saveApplyLocal(data); alert('Application submitted (demo).'); closeModal();
+  });
+  document.getElementById('saveJobBtn').addEventListener('click', ()=>{ toggleSave(job.id); document.getElementById('saveJobBtn').textContent = saved.includes(job.id) ? 'Saved' : 'Save'; savedCount.textContent = saved.length; });
+}
+
+function closeModal(){ modalRoot.innerHTML=''; modalRoot.classList.add('hidden'); }
+
+// ---------- Save / Apply local ----------
+function toggleSave(jobId){ if(saved.includes(jobId)){ saved = saved.filter(x=>x!==jobId); } else { saved.push(jobId); } localStorage.setItem(savedKey, JSON.stringify(saved)); savedCount.textContent = saved.length; }
+
+function viewSaved(){ const list = jobs.filter(j=>saved.includes(j.id)); if(list.length===0) return alert('No saved jobs'); // show simple modal list
+  modalRoot.innerHTML = `
+    <div class="modal-backdrop"><div class="modal" style="max-width:720px"><h3>Saved jobs</h3><div style="margin-top:12px">${list.map(j=>'<div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.02);"><strong>'+escapeHtml(j.title)+'</strong><div class="small">'+escapeHtml(j.province+' • '+j.district)+'</div><div style="margin-top:6px"><button class="btn ghost" data-id="'+j.id+'">View</button> <button class="btn" data-id="'+j.id+'-remove">Remove</button></div></div>').join('')}</div><div style="margin-top:12px;text-align:right"><button class="btn" id="closeSaved">Close</button></div></div></div>`;
+  modalRoot.classList.remove('hidden'); document.getElementById('closeSaved').addEventListener('click', closeModal);
+  modalRoot.querySelectorAll('button[data-id]').forEach(b=>{ b.addEventListener('click',(e)=>{ const id = e.currentTarget.getAttribute('data-id'); if(id.endsWith('-remove')){ const jid = id.replace('-remove',''); saved = saved.filter(x=>x!==jid); localStorage.setItem(savedKey, JSON.stringify(saved)); alert('Removed'); closeModal(); renderJobs(); } else { openJob(id); } }); });
+}
+
+function saveApplyLocal(data){ const key = 'aa_applies_demo_v1'; const arr = JSON.parse(localStorage.getItem(key)||'[]'); arr.push(data); localStorage.setItem(key, JSON.stringify(arr)); }
+
+// ---------- Helpers ----------
+function findJob(id){ return jobs.find(j=>j.id===id); }
+
+// ---------- Start ----------
+init();
+</script>
+</body>
+</html>
